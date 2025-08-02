@@ -3,6 +3,7 @@ import numpy as np
 import json
 from typing import Dict, List, Tuple
 from fuzzywuzzy import fuzz
+import re
 
 def load_datasets() -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
@@ -269,6 +270,109 @@ def find_matches(df1_clean: pd.DataFrame, df2_clean: pd.DataFrame, threshold: fl
     
     return matches
 
+def search_product(product_name: str, df1_clean: pd.DataFrame, df2_clean: pd.DataFrame, threshold: float = 50.0) -> Dict:
+    """
+    Search for a product and return the highest price if a match is found.
+    
+    Args:
+        product_name: Name of the product to search for
+        df1_clean: Cleaned dataset1
+        df2_clean: Cleaned dataset2
+        threshold: Minimum similarity score to consider a match
+        
+    Returns:
+        Dict: Search result with product info and highest price
+    """
+    print(f"\n=== SEARCHING FOR: {product_name} ===")
+    
+    # Clean the search query
+    search_query = product_name.lower()
+    search_query = re.sub(r'[^\w\s]', ' ', search_query)
+    search_query = re.sub(r'\s+', ' ', search_query).strip()
+    
+    best_match = None
+    best_score = 0
+    
+    # Search in dataset1 first
+    for idx, product in df1_clean.iterrows():
+        score = fuzz.ratio(search_query, product['name_clean'])
+        if score > best_score:
+            best_score = score
+            best_match = {
+                'dataset': 'dataset1',
+                'product_name': product['Nome'],
+                'brand': product['brand_normalized'],
+                'price': product['price'],
+                'similarity_score': score
+            }
+    
+    # Search in dataset2
+    relevant_brands = ['canon', 'nikon', 'sony', 'fujifilm', 'sigma', 'tamron']
+    df2_filtered = df2_clean[df2_clean['brand_normalized'].isin(relevant_brands)]
+    
+    for idx, product in df2_filtered.iterrows():
+        score = fuzz.ratio(search_query, product['name_clean'])
+        if score > best_score:
+            best_score = score
+            best_match = {
+                'dataset': 'dataset2',
+                'product_name': product['Title'],
+                'brand': product['brand_normalized'],
+                'price': product['price'],
+                'similarity_score': score
+            }
+    
+    # Check if we found a match above threshold
+    if best_match and best_match['similarity_score'] >= threshold:
+        print(f"✅ MATCH FOUND!")
+        print(f"Product: {best_match['product_name']}")
+        print(f"Brand: {best_match['brand']}")
+        print(f"Price: ${best_match['price']}")
+        print(f"Similarity: {best_match['similarity_score']:.1f}%")
+        print(f"Dataset: {best_match['dataset']}")
+        
+        return {
+            'found': True,
+            'product_name': best_match['product_name'],
+            'brand': best_match['brand'],
+            'price': best_match['price'],
+            'similarity_score': best_match['similarity_score'],
+            'dataset': best_match['dataset']
+        }
+    else:
+        print(f"❌ No match found above threshold {threshold}")
+        if best_match:
+            print(f"Best match was: {best_match['product_name']} (similarity: {best_match['similarity_score']:.1f}%)")
+        
+        return {
+            'found': False,
+            'message': f"No match found above threshold {threshold}",
+            'best_match': best_match
+        }
+
+def test_search_system(df1_clean: pd.DataFrame, df2_clean: pd.DataFrame) -> None:
+    """
+    Test the search system with example queries.
+    
+    Args:
+        df1_clean: Cleaned dataset1
+        df2_clean: Cleaned dataset2
+    """
+    print(f"\n=== TESTING SEARCH SYSTEM ===")
+    
+    # Test queries
+    test_queries = [
+        "Canon EF 70-200mm",
+        "Nikon D850",
+        "Sony A7",
+        "Sigma 35mm",
+        "Non-existent product"
+    ]
+    
+    for query in test_queries:
+        result = search_product(query, df1_clean, df2_clean, threshold=50.0)
+        print("-" * 50)
+
 def main():
     """Main function to execute the pipeline."""
     print("=== PRODUCT MATCHING SOLUTION ===")
@@ -284,6 +388,10 @@ def main():
     
     # Find matches using fuzzy matching
     matches = find_matches(df1_clean, df2_clean, threshold=50.0)
+    
+    # Test search system
+    test_search_system(df1_clean, df2_clean)
+ 
 
 
 if __name__ == "__main__":
