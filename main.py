@@ -373,6 +373,51 @@ def test_search_system(df1_clean: pd.DataFrame, df2_clean: pd.DataFrame) -> None
         result = search_product(query, df1_clean, df2_clean, threshold=50.0)
         print("-" * 50)
 
+def analyze_results(matches: List[Dict], df1_clean: pd.DataFrame, df2_clean: pd.DataFrame) -> None:
+    """
+    Analyze and summarize the matching results.
+    
+    Args:
+        matches: List of matches found
+        df1_clean: Cleaned dataset1
+        df2_clean: Cleaned dataset2
+    """
+    print(f"\n=== RESULTS ANALYSIS ===")
+    
+    # Basic statistics
+    print(f"Total matches found: {len(matches)}")
+    print(f"Dataset1 products: {len(df1_clean)}")
+    print(f"Dataset2 products: {len(df2_clean)}")
+    print(f"Match rate: {len(matches)/len(df1_clean)*100:.1f}%")
+    
+    # Price analysis
+    if matches:
+        prices = [match['highest_price'] for match in matches]
+        print(f"\nPrice Statistics for Matches:")
+        print(f"Average highest price: ${np.mean(prices):.2f}")
+        print(f"Min highest price: ${min(prices)}")
+        print(f"Max highest price: ${max(prices)}")
+        
+        # Similarity score analysis
+        scores = [match['similarity_score'] for match in matches]
+        print(f"\nSimilarity Score Statistics:")
+        print(f"Average similarity: {np.mean(scores):.1f}%")
+        print(f"Min similarity: {min(scores):.1f}%")
+        print(f"Max similarity: {max(scores):.1f}%")
+        
+        # Brand analysis
+        brands = [match['product1_brand'] for match in matches]
+        brand_counts = pd.Series(brands).value_counts()
+        print(f"\nMatches by Brand:")
+        for brand, count in brand_counts.head().items():
+            print(f"  {brand}: {count} matches")
+    
+    # Save results to file
+    if matches:
+        results_df = pd.DataFrame(matches)
+        results_df.to_csv('output/matching_results.csv', index=False)
+        print(f"\nResults saved to: output/matching_results.csv")
+
 def main():
     """Main function to execute the pipeline."""
     print("=== PRODUCT MATCHING SOLUTION ===")
@@ -391,6 +436,11 @@ def main():
     
     # Test search system
     test_search_system(df1_clean, df2_clean)
+    
+    # Analyze results and generate summary
+    analyze_results(matches, df1_clean, df2_clean)
+
+    print("\nCheck README.md for documentation and usage examples\n)
  
 
 
