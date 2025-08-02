@@ -64,6 +64,105 @@ def analyze_datasets(df1: pd.DataFrame, df2: pd.DataFrame) -> None:
     print(f"\nDataset2 Samples:")
     print(df2.head(3)[['Title', 'IntName', 'Category_Name', 'price']])
 
+def clean_and_normalize_data(df1: pd.DataFrame, df2: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Clean and normalize data from both datasets for matching.
+    
+    Args:
+        df1: Dataset1
+        df2: Dataset2
+        
+    Returns:
+        Tuple[pd.DataFrame, pd.DataFrame]: Cleaned datasets
+    """
+    print("\n=== DATA CLEANING AND NORMALIZATION ===")
+    
+    # Create copies to avoid modifying original data
+    df1_clean = df1.copy()
+    df2_clean = df2.copy()
+    
+    # Normalize brand names in dataset1
+    print("Normalizing brand names in dataset1...")
+    brand_mapping = {
+        'Canon & compatible': 'Canon',
+        'Nikon & compatible': 'Nikon',
+        'Sony': 'Sony',
+        'Fujifilm': 'Fujifilm',
+        'Sigma': 'Sigma',
+        'Tamron': 'Tamron'
+    }
+    df1_clean['brand_normalized'] = df1_clean['Marchio'].map(brand_mapping)
+    
+    # Clean product names in dataset1
+    print("Cleaning product names in dataset1...")
+    df1_clean['name_clean'] = df1_clean['Nome'].str.lower()
+    df1_clean['name_clean'] = df1_clean['name_clean'].str.replace(r'[^\w\s]', ' ', regex=True)
+    df1_clean['name_clean'] = df1_clean['name_clean'].str.replace(r'\s+', ' ', regex=True).str.strip()
+    
+    # Extract brand from dataset2
+    print("Extracting brand information from dataset2...")
+    def extract_brand(title, intname):
+        """Extract brand from title or internal name"""
+        text = str(title) + ' ' + str(intname)
+        text = text.lower()
+
+        known_brands = ['canon', 'nikon', 'sony', 'fujifilm', 'sigma', 'tamron']
+        for brand in known_brands:
+            if brand in text:
+                return brand
+        return 'Other'
+
+    df2_clean['brand_normalized'] = df2_clean.apply(
+        lambda x: extract_brand(x['Title'], x['IntName']), axis=1
+    )
+    
+    # Clean product names in dataset2
+    print("Cleaning product names in dataset2...")
+    df2_clean['name_clean'] = df2_clean['Title'].str.lower()
+    df2_clean['name_clean'] = df2_clean['name_clean'].str.replace(r'[^\w\s]', ' ', regex=True)
+    df2_clean['name_clean'] = df2_clean['name_clean'].str.replace(r'\s+', ' ', regex=True).str.strip()
+    
+    # Extract category information from dataset2
+    print("Extracting category information from dataset2...")
+    def extract_category_from_json(features_str):
+        """Extract category information from JSON features"""
+        try:
+            if pd.isna(features_str):
+                return 'Unknown'
+            
+            # Simple extraction - look for common photography terms
+            features_lower = str(features_str).lower()
+            
+            if 'lens' in features_lower or 'obiettivo' in features_lower:
+                return 'Lens'
+            elif 'camera' in features_lower or 'fotocamera' in features_lower:
+                return 'Camera'
+            elif 'flash' in features_lower:
+                return 'Flash'
+            elif 'tripod' in features_lower:
+                return 'Tripod'
+            else:
+                return 'Other'
+        except:
+            return 'Unknown'
+    
+    df2_clean['category_extracted'] = df2_clean['features'].apply(extract_category_from_json)
+    
+    # Create standardized category mapping
+    print("Creating standardized category mapping...")
+    category_mapping = {
+        'Obiettivi': 'Lens',
+        'Reflex': 'Camera',
+        'Mirrorless': 'Camera'
+    }
+    df1_clean['category_normalized'] = df1_clean['Categoria'].map(category_mapping).fillna('Other')
+    
+    print(f"Data cleaning completed!")
+    print(f"Dataset1: {len(df1_clean)} products")
+    print(f"Dataset2: {len(df2_clean)} products")
+    
+    return df1_clean, df2_clean
+
 def main():
     """Main function to execute the pipeline (to be implemented)"""
     print("=== PRODUCT MATCHING SOLUTION ===")
@@ -73,8 +172,10 @@ def main():
     
     # Analysis
     analyze_datasets(df1, df2)
-
-    # to be implemented
+    
+    # Clean and normalize data
+    df1_clean, df2_clean = clean_and_normalize_data(df1, df2)
+    
 
 if __name__ == "__main__":
     main() 
