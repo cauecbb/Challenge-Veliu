@@ -440,7 +440,7 @@ def main():
     # Analyze results and generate summary
     analyze_results(matches, df1_clean, df2_clean)
 
-    print("\nCheck README.md for documentation and usage examples\n)
+    print("\nCheck README.md for documentation and usage examples\n")
  
 
 
